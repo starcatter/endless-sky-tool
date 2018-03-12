@@ -1,0 +1,189 @@
+{
+	"Setup":{
+		"Paths":{
+			"Input":"v:/CodeBlocks.projects/endless-sky-fork/data/",
+			"Output":"v:/CodeBlocks.projects/endless-sky-fork/data/out/"
+		},
+		"Files":{
+			"Effects":[
+				"effects.txt"
+			],
+			"Outfits":[
+				"coalition outfits.txt",
+				"coalition weapons.txt",
+				"engines.txt",
+				"hai outfits.txt",
+				"korath outfits.txt",
+				"korath weapons.txt",
+				"outfits.txt",
+				"power.txt",
+				"quarg outfits.txt",
+				"remnant outfits.txt",
+				"wanderer outfits.txt",
+				"weapons.txt"
+				],
+			"Ships":[
+				"coalition ships.txt",
+				"hai ships.txt",
+				"korath ships.txt",
+				"wanderer ships.txt",
+				"remnant ships.txt",
+				"quarg ships.txt",
+				"ships.txt"
+				]
+		},
+		"Structure":{
+			"Outfit":{
+				"weapon->hit effect":"Effect",
+				"weapon->submunition":"Outfit"
+			}
+		}
+	},
+	"Actions":[
+		{
+			"name":"Balance Guns",
+			"criteria":{
+				"category":"Guns"
+			},
+			"reference":[
+				"Heavy Laser"
+			],
+			"calculate":{
+				"ratio":{
+					"with":{
+						"hDmg":"weapon->hull damage",
+						"sDmg":"weapon->shield damage"
+					},
+					"withRequired":{
+						"reload":"weapon->reload",
+						"mass":"mass"
+					},
+					"formula":"((hDmg+sDmg)/reload)/mass"
+				}
+			},
+			"set":{
+				"required maintenance":{
+					"with":{
+						"mass":"mass"
+					},
+					"formula":"((ratio/reference.ratio)*mass)/10"
+				}
+			}
+		},
+		{
+			"name":"Balance Turrets",
+			"criteria":{
+				"category":"Turrets"
+			},
+			"reference":[
+				"Heavy Laser Turret"
+			],
+			"calculate":{
+				"ratio":{
+					"with":{
+						"hDmg":"weapon->hull damage",
+						"sDmg":"weapon->shield damage",
+						"AMS":"weapon->anti missile"
+					},
+					"withRequired":{
+						"reload":"weapon->reload",
+						"mass":"mass"
+					},
+					"formula":"((hDmg+sDmg+AMS)/reload)/mass"
+				}
+			},
+			"set":{
+				"required maintenance":{
+					"with":{
+						"mass":"mass"
+					},
+					"formula":"((ratio/reference.ratio)*mass)/10"
+				}
+			}
+		},
+		{
+			"name":"Balance Power - general",
+			"criteria":{
+				"category":"Power"
+			},
+			"reference":[
+				"Fusion Reactor"
+			],
+			"calculate":{
+				"powerToMassRatio":{
+					"with":{
+						"collection":"solar collection",
+						"generation":"energy generation",
+						"capacity":"energy capacity"
+					},
+					"withRequired":{
+						"mass":"mass"
+					},
+					"formula":"(generation*2 + collection + capacity/18000)/mass"
+				},
+				"wasteRatio":{
+					"with":{
+						"heat":"heat generation"
+					},
+					"withRequired":{
+						"mass":"mass"
+					},
+					"formula":"heat/mass"
+				}
+			},
+			"set":{
+				"required maintenance":{
+					"with":{
+						"mass":"mass"
+					},
+					"formula":"( (powerToMassRatio/reference.powerToMassRatio) * mass * (1 + wasteRatio) )/10"
+				}
+			}
+		},
+		{
+			"name":"Balance Power - reactors",
+			"criteria":{
+				"category":"Power",
+				"_name":{
+					"containsAny":[
+						"reactor",
+						"core"
+					]
+				}
+			},
+			"reference":[
+				"Fusion Reactor"
+			],
+			"calculate":{
+				"powerToMassRatio":{
+					"with":{
+						"collection":"solar collection",
+						"generation":"energy generation",
+						"capacity":"energy capacity"
+					},
+					"withRequired":{
+						"mass":"mass"
+					},
+					"formula":"(generation*2 + collection + capacity/18000)/mass"
+				},
+				"wasteRatio":{
+					"with":{
+						"heat":"heat generation"
+					},
+					"withRequired":{
+						"mass":"mass"
+					},
+					"formula":"heat/mass"
+				}
+			},
+			"set":{
+				"required maintenance":{
+					"with":{
+						"mass":"mass"
+					},
+					"formula":"( (powerToMassRatio/reference.powerToMassRatio) * mass * (1 + wasteRatio*1.2) )/10"
+				}
+			}
+		}		
+	]
+}
