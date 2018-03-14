@@ -17,18 +17,25 @@ outputPath = ""
 
 outfitFileContents = {}
 
-entityIndex = {}
-entityIndex["Outfit"] = {}
-entityIndex["Effect"] = {}
-
 # ----------------------------------------------------
 
-class Attribute:
-	name :str
-	values :[str]	
-	attributes : {}
-	linked : []
+def quoteName(string : str) -> str:
+	if string.count('"') > 0:
+		return '`' + string + '`'
+	elif string.count(' ') > 0:
+		return '"' + string + '"'
+	return string
+	
+def quoteValue(string : str) -> str:
+	if string.count('"') > 0:
+		return '`' + string + '`'
+	elif string.isalpha() or string.count(' ') > 0:
+		return '"' + string + '"'
+	return string
+	
+# ----------------------------------------------
 
+class Attribute:
 	def addLink(self, entity, count):
 		self.linked.append((entity,count))
 
@@ -38,70 +45,120 @@ class Attribute:
 		else:
 			self.attributes[attr.name].append(attr)
 
+	def getString(self,indent = 0) -> str:
+		indentStr = ""
+		for i in range(0, indent):
+			indentStr += "\t"
+
+		return indentStr + self.getStringSelf() + "\n" + self.getStringAttributes(indent + 1)
+
+	def getValuesStr(self) -> str:
+		out = ""
+		if( self.values != None ):
+			for value in self.values:
+				out += " " + quoteValue(value)
+		return out
+
+	def getStringSelf(self) -> str:		
+		return quoteName(self.name) + self.getValuesStr()
+
+	def getStringAttributes(self,indent = 0) -> str:
+		attrStr = ""
+		for name, attrList in self.attributes.items():
+			if attrList != None:
+				for attr in attrList:
+					attrStr += attr.getString(indent)
+		return attrStr
+
 	def __init__(self, name:str, values:[str]):
-		self.name = name.replace('"',"").replace("\n","")
+		self.name = name.replace("\n","")
+
 		if(values != None): 
-			self.values = [value.replace('"',"").replace('`',"") for value in values]
+			self.values = [value for value in values]
 		else:
 			self.values = None
+
 		self.attributes = {}
 		self.linked = []
 
-class Effect(Attribute):
-	def __init__(self, name:str):
-		self.name = name.replace("\n","")
-		self.values = None
-		self.attributes = {}
-		self.linked = []
+class Entity(Attribute):
+	def __init__(self, name:str, entityName : str):
+		super(Entity, self).__init__(name,[entityName])
 
-class Outfit(Attribute):
+	def getStringSelf(self) -> str:
+		return self.values[0] + " " + quoteValue(self.name)
+
+# ----------------------------------------------
+
+class Effect(Entity):
 	def __init__(self, name:str):
-		self.name = name.replace("\n","")
-		self.values = None
-		self.attributes = {}
-		self.linked = []
+		super(Effect, self).__init__(name,"effect")
+
+class Outfit(Entity):
+	def __init__(self, name:str):
+		super(Outfit, self).__init__(name,"outfit")
 	
+class Ship(Entity):
+	def __init__(self, name:str):
+		super(Ship, self).__init__(name,"ship")
+	
+# ----------------------------------------------
+
+classMap = {
+		"outfit": Outfit,
+		"effect": Effect,
+		"ship": Ship
+	}
+
+entityIndex = {}
+for typeName, clazz in classMap.items():
+	entityIndex[typeName] = {}
+
 # ----------------------------------------------
 
 def loadContents():
+	print("Load Ships:")
+	for fileName in setupData["Files"]["Ships"]:
+		outfitFileContents[fileName] = loadFile(fileName)
+
 	print("Load Outfits:")
 	for fileName in setupData["Files"]["Outfits"]:
-		loadFile(fileName)
+		outfitFileContents[fileName] = loadFile(fileName)
 	
 	print("Load Effects:")
 	for fileName in setupData["Files"]["Effects"]:
-		loadFile(fileName)
+		outfitFileContents[fileName] = loadFile(fileName)
 
 # ----------------------------------------------
 
-def loadFile(fileName):
+def loadFile(fileName) -> {}:
 	print(fileName)
 
-	outfitFileContents[fileName] = []
+	fileContents = []
 	with open(inputPath + fileName) as fileHandle:
-		entry = None						# currently loaded outfit
+		entity = None						# currently loaded entity
 		attributeStack :[Attribute] = []	# currently loaded attribute stack
 		count : int = 0
 		for line in fileHandle:
 			line : str = line
 			count += 1
 			
-			if line.startswith("outfit"):
-				name :str= re.sub("^outfit\s+","", line)
-				name = name.replace('"',"")
+			for typeName, clazz in classMap.items():
+				if line.startswith(typeName):
+					entityName :str= re.sub("^"+typeName+"\s+","", line).replace("\n","")
 
-				entry :Outfit = Outfit(name)
-				outfitFileContents[fileName].append(entry)
-				entityIndex["Outfit"][entry.name] = entry
-			elif line.startswith("effect"):
-				name = re.sub("^effect\s+","", line)
-				name = name.replace('"',"")
+					if(entityName.count('`')>0):
+						entityName = entityName.replace('`',"")
+					else:
+						entityName = entityName.replace('"',"")
 
-				entry :Effect = Effect(name)
-				outfitFileContents[fileName].append(entry)
-				entityIndex["Effect"][entry.name] = entry
-			elif entry != None and line.startswith("\t") and not line.isspace():				
-				match : typing.Match = re.match('^(\t+)(("[^"]+")|([\S]+))\s?(.*)?$',line)
+					entity = clazz(entityName)
+
+					fileContents.append(entity)
+					entityIndex[typeName][entityName] = entity
+
+			if entity != None and line.startswith("\t") and not line.isspace():				
+				match : typing.Match = re.match('^(\t+)(("[^"]+")|(`[^`]+`)|([\S]+))\s?(.*)?$',line)
 
 				if match == None:
 					print("Failed match:\n\t[["+line+"]]\n\t@"+str(count))
@@ -109,18 +166,33 @@ def loadFile(fileName):
 
 				index : int = len(match.group(1))
 				attrName :str = match.group(2)
-				attrValue :str = match.group(5)
+				attrValue :str = match.group(6)
 
 				if attrName == "#":
 					continue
 
+				if match.group(3) != None:
+					attrName = attrName.replace('"',"")
+				elif match.group(4) != None:
+					attrName = attrName.replace('`',"")					
+
 				valueMatches = re.findall('(("[^"]+")|(`[^`]+`)|(\S+))', attrValue)
-				values = [ match[0] for match in valueMatches ]
+
+				values = []
+				for match in valueMatches:
+					if match[1] != None:
+						values.append(  match[0].replace('"',"") )
+					elif match[2] != None:
+						values.append(  match[0].replace('`',"") )
+					else:
+						values.append( match[0] )
+
+				#values = [ match[0] for match in valueMatches ]
 			
 				attr = Attribute(attrName,values)
 
 				if index == 1:	# outfit attribute
-					entry.addAttr(attr)
+					entity.addAttr(attr)
 					attributeStack :[Attribute] = [attr]
 				elif index >= 2: # nested attribute	
 					parent : Attribute = attributeStack[index-2]
@@ -131,48 +203,12 @@ def loadFile(fileName):
 					elif len(attributeStack) >= index:
 						attributeStack[index-1] = attr
 			elif line.startswith("#"):
-				outfitFileContents[fileName].append(line)
+				fileContents.append(line)
 			# process line
 		# for line in fileHandle
 	# open file
+	return fileContents
 	
-
-# ----------------------------------------------
-def needsQuotes(input : str, isValue : bool) -> bool:
-	if input == None : return False
-	if input.isalpha(): return isValue
-	if input.count(" ") > 0 : return True
-	invChars = re.sub(r"[a-zA-Z0-9\-.,]","",input)
-	return len(invChars) > 0
-
-# ----------------------------------------------
-def saveAttributes(attributes :{str,Attribute}, indentCnt : int, outFile : typing.TextIO):
-	for name in attributes:
-		name : str = name	
-		
-		indent : str = "\t"
-		for i in range(1, indentCnt):
-			indent += "\t"
-
-		attrs : [Attribute] = attributes[name]
-		for attr in attrs:
-			if needsQuotes(attr.name, False): 
-				outName = '"'+attr.name+'"' 
-			else: 
-				outName = attr.name
-
-			outValues = ""
-			for value in attr.values:
-				if needsQuotes(value, True):
-					outValues += ' "' + value+'"'
-				else:
-					outValues += ' ' + value
-
-			print( indent + outName + outValues, file=outFile )
-
-			if len(attr.attributes) > 0:
-				saveAttributes(attr.attributes, indentCnt+1, outFile)
-
 # ----------------------------------------------
 def saveContents():
 	print("Save:")
@@ -183,23 +219,12 @@ def saveContents():
 
 		with open(outputPath + fileName, "w") as fileHandle:
 			for entry in contents:
-				if isinstance(entry, Outfit):
-					entry : Outfit = entry
-
-					print( "outfit " + '"' + entry.name+ '"', file=fileHandle )
-					saveAttributes(entry.attributes,1,fileHandle)
-
-				elif isinstance(entry, Effect):
-					entry : Effect = entry
-
-					print( "effect " + '"' + entry.name+ '"', file=fileHandle )
-					saveAttributes(entry.attributes,1,fileHandle)
-				elif isinstance(entry, str):
-					print( entry.replace("\n",""), end="", file=fileHandle )
-			
-				print( "", file=fileHandle )
-
-
+				if isinstance(entry, str):
+					print( entry, end="", file=fileHandle )
+				else:				
+					print( entry.getString(), file=fileHandle )
+					print( "", file=fileHandle )
+						
 # ----------------------------------------------------
 def getKeyFromAttribute(key:str,attr:Attribute) -> [Attribute]:
 	if( key.count("->") > 0 ):
@@ -311,13 +336,13 @@ def execStep(setup : {}):
 	reference : [Outfit] = []
 	workSet : [Outfit] = []
 
-	for index,outfit in entityIndex["Outfit"].items():
+	for index,outfit in entityIndex["outfit"].items():
 		if checkCriteriaForOutfit(outfit, stepCriteria):
 			workSet.append(outfit)
 
 	for refName in stepReference:
-		if refName in entityIndex["Outfit"]:
-			reference.append(entityIndex["Outfit"][refName])
+		if refName in entityIndex["outfit"]:
+			reference.append(entityIndex["outfit"][refName])
 
 	# ---
 	print( "\t processing "+ str(len(workSet)) + " outfits")
@@ -370,28 +395,60 @@ def alterContents():
 	for step in setupActions:
 		execStep(step)
 
-
 # ----------------------------------------------
+def parseLink(link : str) -> (str,int):
+	match = re.match("([a-zA-Z0-9\->]+)(\[(\d+)\])?",link)
+	if match.group(3) != None:
+		return (match.group(1), int(match.group(3)))
+	else:
+		return (match.group(1), 0)
+
 def assembleContents():
 	for entityType, connections in setupData["Structure"].items():
 		print("Assembling: " + entityType)
 		for link, targetType in connections.items():
 			for name, entity in entityIndex[entityType].items():
-				ref = getKeyFromAttribute(link, entity)
-				if ref != None:										
-					targetName = ref[0].values[0]
-					if targetName in entityIndex[targetType]:
-						target = entityIndex[targetType][targetName]
-						if len(ref[0].values) > 1:
-							count = ref[0].values[1]
+				# remove index from link def, if present
+				
+				linkClean,linkIndex = parseLink(link)
+
+				attrList : Attribute = getKeyFromAttribute(linkClean, entity)
+				if attrList != None:
+					for ref in attrList:
+						if len(ref.attributes) == 0 and len(ref.values) > linkIndex:
+							targetName = ref.values[linkIndex]
+
+							if targetName in entityIndex[targetType]:
+								target = entityIndex[targetType][targetName]
+								# extract count param, if present
+								if len(ref.values) > linkIndex+1:
+									count = ref.values[linkIndex+1]
+								else:
+									count = 1
+
+								# print("Link [["+entityType+"]]:[[" + name + "]]@" + link + " -> [["+targetType+"]]:[["+targetName+"]] X " + str(count))
+
+								ref.addLink(target, count)
+								entity.addLink(target, count)
+
+							else:
+								print("Cannot find [["+targetType+"]]:[["+targetName+"]], \n\trequired by [["+entityType+"]]:[[" + name + "]] @ " + link)
 						else:
-							count = 1
+							for targetName, attrValue in ref.attributes.items():
+								if targetName in entityIndex[targetType]:
+									target = entityIndex[targetType][targetName]
+									# extract count param, if present
+									if len(ref.values) > linkIndex+1:
+										count = ref.values[linkIndex+1]
+									else:
+										count = 1
 
-						ref[0].addLink(target, count)
-						entity.addLink(target, count)
-					else:
-						print("Cannot find [["+targetType+"]]:[["+targetName+"]], \n\trequired by [["+entityType+"]]:[[" + name + "]] @ " + link)
+									# print("Link [["+entityType+"]]:[[" + name + "]]@" + link + " -> [["+targetType+"]]:[["+targetName+"]] X " + str(count))
 
+									ref.addLink(target, count)
+									entity.addLink(target, count)
+								else:
+									print("Cannot find [["+targetType+"]]:[["+targetName+"]], \n\trequired by [["+entityType+"]]:[[" + name + "]] @ " + link)
 
 
 # ----------------------------------------------
@@ -409,6 +466,9 @@ inputPath = setupData["Paths"]["Input"]
 outputPath = setupData["Paths"]["Output"]
 
 loadContents()
+print("---")
 assembleContents()
+print("---")
 alterContents()
+print("---")
 saveContents()

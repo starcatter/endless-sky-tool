@@ -11,8 +11,7 @@
 			"Outfits":[
 				"coalition outfits.txt",
 				"coalition weapons.txt",
-				"engines.txt",
-				"hai outfits.txt",
+				"engines.txt",				
 				"korath outfits.txt",
 				"korath weapons.txt",
 				"outfits.txt",
@@ -20,7 +19,8 @@
 				"quarg outfits.txt",
 				"remnant outfits.txt",
 				"wanderer outfits.txt",
-				"weapons.txt"
+				"weapons.txt",
+				"hai outfits.txt"
 				],
 			"Ships":[
 				"coalition ships.txt",
@@ -33,9 +33,15 @@
 				]
 		},
 		"Structure":{
-			"Outfit":{
-				"weapon->hit effect":"Effect",
-				"weapon->submunition":"Outfit"
+			"outfit":{
+				"weapon->hit effect":"effect",
+				"weapon->submunition":"outfit"
+			},
+			"ship":{
+				"outfits":"outfit",
+				"gun[2]":"outfit",
+				"turret[2]":"outfit",
+				"explode":"effect"
 			}
 		}
 	},
