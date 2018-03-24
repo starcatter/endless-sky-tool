@@ -47,7 +47,36 @@
 	},
 	"Actions":[
 		{
+			"name":"Proton Gun test",
+			"type":"outfit",
+			"criteria":{
+				"_name":"Proton Gun",
+				"category":"Guns"
+			},
+			"set":{
+				"weapon->hull damage by self":{
+					"with":{
+						"ownDmg":"_self->weapon->hull damage"
+					},
+					"formula":"ownDmg",
+					"format":{
+						"precision":"3"
+					}
+				},
+				"weapon->hull damage by submunitions":{
+					"with":{
+						"totalDmg":"weapon->hull damage"
+					},
+					"formula":"totalDmg",
+					"format":{
+						"precision":"3"
+					}
+				}
+			}
+		},
+		{
 			"name":"Balance Guns",
+			"type":"outfit",
 			"criteria":{
 				"category":"Guns"
 			},
@@ -72,12 +101,16 @@
 					"with":{
 						"mass":"mass"
 					},
-					"formula":"((ratio/reference.ratio)*mass)/10"
+					"formula":"((ratio/reference.ratio)*mass)/10",
+					"format":{
+						"multiple":"0.05"
+					}
 				}
 			}
 		},
 		{
 			"name":"Balance Turrets",
+			"type":"outfit",
 			"criteria":{
 				"category":"Turrets"
 			},
@@ -103,12 +136,16 @@
 					"with":{
 						"mass":"mass"
 					},
-					"formula":"((ratio/reference.ratio)*mass)/10"
+					"formula":"((ratio/reference.ratio)*mass)/10",
+					"format":{
+						"multiple":"0.05"
+					}
 				}
 			}
 		},
 		{
 			"name":"Balance Power - general",
+			"type":"outfit",
 			"criteria":{
 				"category":"Power"
 			},
@@ -142,12 +179,16 @@
 					"with":{
 						"mass":"mass"
 					},
-					"formula":"( (powerToMassRatio/reference.powerToMassRatio) * mass * (1 + wasteRatio) )/10"
+					"formula":"( (powerToMassRatio/reference.powerToMassRatio) * mass * (1 + wasteRatio) )/10",
+					"format":{
+						"multiple":"0.15"
+					}
 				}
 			}
 		},
 		{
 			"name":"Balance Power - reactors",
+			"type":"outfit",
 			"criteria":{
 				"category":"Power",
 				"_name":{
@@ -187,9 +228,63 @@
 					"with":{
 						"mass":"mass"
 					},
-					"formula":"( (powerToMassRatio/reference.powerToMassRatio) * mass * (1 + wasteRatio*1.2) )/10"
+					"formula":"( (powerToMassRatio/reference.powerToMassRatio) * mass * (1 + wasteRatio*1.2) )/10",
+					"format":{
+						"precision":"2"
+					}
 				}
 			}
-		}		
+		},
+		{
+			"name":"Balance ship crew/maintenance",
+			"type":"ship",
+			"criteria":{
+				"attributes->required crew":{
+					"greaterThan":"0"
+				}
+			},
+			"reference":[
+				"Arach Freighter"
+			],
+			"calculate":{
+				"capacity":{
+					"with":{
+						"bunks":"_self->attributes->bunks",
+						"cargo":"_self->attributes->cargo space",
+						"outfits":"_self->attributes->outfit space",
+						"weapons":"_self->attributes->weapon capacity",
+						"engines":"_self->attributes->engine capacity",	
+						"fuel":"_self->attributes->fuel capacity"						
+					},
+					"formula":"cargo*0.75 + (outfits-(weapons+engines)) + weapons*1.25 + engines*1.25 + fuel/20 + bunks*2.5"
+				}
+			},
+			"set":{
+				"attributes->maintenance":{
+					"with":{
+						"outfit_maintenance":"required maintenance"
+					},
+					"formula":"outfit_maintenance",
+					"format":{
+						"precision":"2"
+					}
+				},
+				"capacity":{
+					"formula":"capacity",
+					"format":{
+						"precision":"2"
+					}
+				},
+				"capacityRatio":{
+					"with":{
+						"mass":"_self->attributes->mass"
+					},
+					"formula":"capacity/mass",
+					"format":{
+						"precision":"2"
+					}
+				}
+			}
+		}
 	]
 }
